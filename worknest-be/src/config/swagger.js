@@ -6,47 +6,39 @@ const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: '3.0.3',
     info: {
-      title: 'WorkNest API',
+      title: 'Team Task Management API',
       version: '1.0.0',
-      description: 'API documentation for WorkNest backend',
+      description: 'Backend REST API — xem docs/Backend_Features_and_API_Spec.md',
     },
     servers: [
-      { url: `http://localhost:${env.PORT}/api/v1`, description: 'Local' },
+      { url: `http://localhost:${env.PORT}/api`, description: 'Local' },
     ],
     components: {
       securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
+        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       },
       schemas: {
-        ApiResponse: {
+        SuccessResponse: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
-            message: { type: 'string' },
+            success: { type: 'boolean', example: true },
             data: {},
+            meta: { type: 'object' },
           },
         },
         ErrorResponse: {
           type: 'object',
           properties: {
             success: { type: 'boolean', example: false },
-            message: { type: 'string' },
-            details: {},
-          },
-        },
-        User: {
-          type: 'object',
-          properties: {
-            _id: { type: 'string' },
-            name: { type: 'string' },
-            email: { type: 'string', format: 'email' },
-            role: { type: 'string', enum: ['user', 'admin'] },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
+            error: {
+              type: 'object',
+              properties: {
+                code: { type: 'string', example: 'VALIDATION_ERROR' },
+                message: { type: 'string' },
+                details: {},
+                requestId: { type: 'string' },
+              },
+            },
           },
         },
       },

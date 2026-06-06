@@ -1,27 +1,36 @@
 require('dotenv').config();
 const app = require('./app');
-const connectDB = require('./config/db');
 const env = require('./config/env');
+const logger = require('./config/logger');
+const { connectDB, disconnectDB } = require('./config/db');
+
+let server;
 
 const start = async () => {
   try {
     await connectDB();
-    app.listen(env.PORT, () => {
-      console.log(`[server] running on http://localhost:${env.PORT} (${env.NODE_ENV})`);
-      console.log(`[swagger] docs at  http://localhost:${env.PORT}/api-docs`);
+    server = app.listen(env.PORT, () => {
+      logger.info(`[server] running on http://localhost:${env.PORT} (${env.NODE_ENV})`);
+      logger.info(`[swagger] docs at  http://localhost:${env.PORT}/api-docs`);
     });
   } catch (err) {
-    console.error('[server] failed to start:', err.message);
+    logger.error({ err }, '[server] failed to start');
     process.exit(1);
   }
 };
 
-start();
+const shutdown = async (signal) => {
+  logger.info(`[server] received ${signal}, shutting down...`);
+  if (server) server.close();
+  await disconnectDB().catch((err) => logger.error({ err }, '[mongo] disconnect failed'));
+  process.exit(0);
+};
 
-process.on('unhandledRejection', (reason) => {
-  console.error('[unhandledRejection]', reason);
-});
+['SIGINT', 'SIGTERM'].forEach((sig) => process.on(sig, () => shutdown(sig)));
+process.on('unhandledRejection', (reason) => logger.error({ err: reason }, '[unhandledRejection]'));
 process.on('uncaughtException', (err) => {
-  console.error('[uncaughtException]', err);
+  logger.fatal({ err }, '[uncaughtException]');
   process.exit(1);
 });
+
+start();

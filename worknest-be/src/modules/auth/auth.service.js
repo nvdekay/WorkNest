@@ -1,27 +1,27 @@
-const jwt = require('jsonwebtoken');
-const User = require('../user/user.model');
-const ApiError = require('../../utils/ApiError');
-const env = require('../../config/env');
+// TODO: implement vòng đời JWT, blacklist refresh token theo jti, bcrypt cost 12.
 
-const signToken = (user) =>
-  jwt.sign({ sub: user._id.toString(), role: user.role }, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
-  });
-
-const register = async ({ name, email, password }) => {
-  const exists = await User.findOne({ email });
-  if (exists) throw new ApiError(409, 'Email already in use');
-  const user = await User.create({ name, email, password });
-  return { user, token: signToken(user) };
+const register = async (_payload) => {
+  throw new Error('auth.service.register not implemented');
 };
 
-const login = async ({ email, password }) => {
-  const user = await User.findOne({ email }).select('+password');
-  if (!user) throw new ApiError(401, 'Invalid email or password');
-  const valid = await user.comparePassword(password);
-  if (!valid) throw new ApiError(401, 'Invalid email or password');
-  user.password = undefined;
-  return { user, token: signToken(user) };
+const login = async (_payload) => {
+  throw new Error('auth.service.login not implemented');
 };
 
-module.exports = { register, login };
+const refresh = async (_refreshToken) => {
+  throw new Error('auth.service.refresh not implemented');
+};
+
+const logout = async (_refreshToken) => {
+  throw new Error('auth.service.logout not implemented');
+};
+
+const me = async (_userId) => {
+  throw new Error('auth.service.me not implemented');
+};
+
+const changePassword = async (_userId, _payload) => {
+  throw new Error('auth.service.changePassword not implemented');
+};
+
+module.exports = { register, login, refresh, logout, me, changePassword };
