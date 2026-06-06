@@ -1,0 +1,358 @@
+{
+  "database": "team_task_management",
+  "description": "MongoDB schema (JSON Schema validators + index definitions) for Team Task Management System. Apply with the accompanying setup-database.js via mongosh. validationLevel is 'moderate' and additionalProperties are allowed so Mongoose-managed fields (createdAt, updatedAt, __v) do not break inserts.",
+  "enums": {
+    "role": ["OWNER", "ADMIN", "MEMBER"],
+    "memberStatus": ["ACTIVE", "REMOVED"],
+    "invitationRole": ["ADMIN", "MEMBER"],
+    "invitationStatus": ["PENDING", "ACCEPTED", "EXPIRED", "CANCELLED"],
+    "taskStatus": ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"],
+    "priority": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+    "entityType": ["TASK", "PROJECT", "WORKSPACE", "COMMENT", "INVITATION"],
+    "notificationType": [
+      "TASK_ASSIGNED", "TASK_STATUS_CHANGED", "TASK_DUE_SOON", "TASK_OVERDUE",
+      "COMMENT_ADDED", "COMMENT_REPLY", "MENTIONED", "MEMBER_INVITED",
+      "MEMBER_JOINED", "ROLE_CHANGED", "REMOVED_FROM_WORKSPACE", "PROJECT_CREATED"
+    ],
+    "activityType": [
+      "WORKSPACE_CREATED", "PROJECT_CREATED", "MEMBER_INVITED", "MEMBER_JOINED",
+      "TASK_CREATED", "TASK_STATUS_CHANGED", "TASK_ASSIGNED", "TASK_UNASSIGNED",
+      "TASK_PRIORITY_CHANGED", "TASK_DUE_CHANGED", "TASK_RENAMED",
+      "COMMENT_ADDED", "TASK_ATTACHMENT_ADDED", "TASK_DELETED"
+    ]
+  },
+  "collections": [
+    {
+      "name": "users",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["name", "email", "passwordHash", "emailVerified"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "name": { "bsonType": "string", "minLength": 2, "maxLength": 60 },
+            "email": { "bsonType": "string", "maxLength": 254, "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+            "passwordHash": { "bsonType": "string" },
+            "avatarUrl": { "bsonType": ["string", "null"] },
+            "emailVerified": { "bsonType": "bool" },
+            "lastLoginAt": { "bsonType": ["date", "null"] },
+            "createdAt": { "bsonType": "date" },
+            "updatedAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "email": 1 }, "options": { "name": "uniq_email", "unique": true } }
+      ]
+    },
+    {
+      "name": "workspaces",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["name", "ownerId", "settings"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "name": { "bsonType": "string", "minLength": 2, "maxLength": 80 },
+            "description": { "bsonType": ["string", "null"], "maxLength": 500 },
+            "avatarUrl": { "bsonType": ["string", "null"] },
+            "ownerId": { "bsonType": "objectId" },
+            "settings": {
+              "bsonType": "object",
+              "required": ["memberCanCreateProject"],
+              "properties": {
+                "memberCanCreateProject": { "bsonType": "bool" },
+                "timezone": { "bsonType": "string" }
+              }
+            },
+            "deletedAt": { "bsonType": ["date", "null"] },
+            "createdAt": { "bsonType": "date" },
+            "updatedAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "ownerId": 1 }, "options": { "name": "by_owner" } },
+        { "key": { "deletedAt": 1 }, "options": { "name": "by_deletedAt" } }
+      ]
+    },
+    {
+      "name": "workspace_members",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["workspaceId", "userId", "role", "status", "joinedAt"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "workspaceId": { "bsonType": "objectId" },
+            "userId": { "bsonType": "objectId" },
+            "role": { "enum": ["OWNER", "ADMIN", "MEMBER"] },
+            "status": { "enum": ["ACTIVE", "REMOVED"] },
+            "joinedAt": { "bsonType": "date" },
+            "createdAt": { "bsonType": "date" },
+            "updatedAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "workspaceId": 1, "userId": 1 }, "options": { "name": "uniq_member", "unique": true } },
+        { "key": { "userId": 1, "status": 1 }, "options": { "name": "my_workspaces" } },
+        { "key": { "workspaceId": 1, "role": 1 }, "options": { "name": "by_workspace_role" } }
+      ]
+    },
+    {
+      "name": "invitations",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["workspaceId", "email", "role", "token", "status", "invitedBy", "expiresAt"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "workspaceId": { "bsonType": "objectId" },
+            "email": { "bsonType": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+            "role": { "enum": ["ADMIN", "MEMBER"] },
+            "token": { "bsonType": "string", "minLength": 64, "maxLength": 64 },
+            "status": { "enum": ["PENDING", "ACCEPTED", "EXPIRED", "CANCELLED"] },
+            "invitedBy": { "bsonType": "objectId" },
+            "expiresAt": { "bsonType": "date" },
+            "createdAt": { "bsonType": "date" },
+            "updatedAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "token": 1 }, "options": { "name": "uniq_token", "unique": true } },
+        { "key": { "workspaceId": 1, "email": 1, "status": 1 }, "options": { "name": "block_dup_pending" } },
+        { "key": { "expiresAt": 1 }, "options": { "name": "by_expiresAt" } }
+      ]
+    },
+    {
+      "name": "projects",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["workspaceId", "name", "key", "statuses", "taskCounter", "createdBy"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "workspaceId": { "bsonType": "objectId" },
+            "name": { "bsonType": "string", "minLength": 2, "maxLength": 80 },
+            "description": { "bsonType": ["string", "null"], "maxLength": 1000 },
+            "key": { "bsonType": "string", "pattern": "^[A-Z0-9]{2,6}$" },
+            "color": { "bsonType": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "statuses": {
+              "bsonType": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "bsonType": "object",
+                "required": ["key", "label", "order"],
+                "properties": {
+                  "key": { "enum": ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"] },
+                  "label": { "bsonType": "string", "minLength": 1, "maxLength": 30 },
+                  "order": { "bsonType": ["int", "long"] }
+                }
+              }
+            },
+            "taskCounter": { "bsonType": ["int", "long"], "minimum": 0 },
+            "createdBy": { "bsonType": "objectId" },
+            "archivedAt": { "bsonType": ["date", "null"] },
+            "deletedAt": { "bsonType": ["date", "null"] },
+            "createdAt": { "bsonType": "date" },
+            "updatedAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "workspaceId": 1, "deletedAt": 1 }, "options": { "name": "by_ws_deleted" } },
+        { "key": { "workspaceId": 1, "key": 1 }, "options": { "name": "uniq_project_key", "unique": true } },
+        { "key": { "workspaceId": 1, "archivedAt": 1 }, "options": { "name": "by_ws_archived" } }
+      ]
+    },
+    {
+      "name": "tasks",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["workspaceId", "projectId", "taskCode", "title", "status", "priority", "position", "createdBy", "commentCount"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "workspaceId": { "bsonType": "objectId" },
+            "projectId": { "bsonType": "objectId" },
+            "taskCode": { "bsonType": "string" },
+            "title": { "bsonType": "string", "minLength": 1, "maxLength": 200 },
+            "description": { "bsonType": ["string", "null"], "maxLength": 10000 },
+            "status": { "enum": ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"] },
+            "priority": { "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+            "position": { "bsonType": ["double", "int", "long"], "minimum": 0 },
+            "assignee": { "bsonType": ["objectId", "null"] },
+            "createdBy": { "bsonType": "objectId" },
+            "dueDate": { "bsonType": ["date", "null"] },
+            "startDate": { "bsonType": ["date", "null"] },
+            "completedAt": { "bsonType": ["date", "null"] },
+            "labels": {
+              "bsonType": "array",
+              "maxItems": 10,
+              "items": {
+                "bsonType": "object",
+                "required": ["name", "color"],
+                "properties": {
+                  "name": { "bsonType": "string", "minLength": 1, "maxLength": 20 },
+                  "color": { "bsonType": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+                }
+              }
+            },
+            "checklist": {
+              "bsonType": "array",
+              "maxItems": 50,
+              "items": {
+                "bsonType": "object",
+                "required": ["_id", "text", "done", "order"],
+                "properties": {
+                  "_id": { "bsonType": "objectId" },
+                  "text": { "bsonType": "string", "minLength": 1, "maxLength": 200 },
+                  "done": { "bsonType": "bool" },
+                  "order": { "bsonType": ["int", "long"] }
+                }
+              }
+            },
+            "attachments": {
+              "bsonType": "array",
+              "maxItems": 20,
+              "items": {
+                "bsonType": "object",
+                "required": ["_id", "fileName", "fileUrl", "fileSize", "mimeType", "uploadedBy", "uploadedAt"],
+                "properties": {
+                  "_id": { "bsonType": "objectId" },
+                  "fileName": { "bsonType": "string" },
+                  "fileUrl": { "bsonType": "string" },
+                  "fileSize": { "bsonType": ["int", "long"], "minimum": 0, "maximum": 10485760 },
+                  "mimeType": { "bsonType": "string" },
+                  "uploadedBy": { "bsonType": "objectId" },
+                  "uploadedAt": { "bsonType": "date" }
+                }
+              }
+            },
+            "watchers": {
+              "bsonType": "array",
+              "items": { "bsonType": "objectId" }
+            },
+            "commentCount": { "bsonType": ["int", "long"], "minimum": 0 },
+            "deletedAt": { "bsonType": ["date", "null"] },
+            "createdAt": { "bsonType": "date" },
+            "updatedAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "projectId": 1, "status": 1, "position": 1 }, "options": { "name": "board_render" } },
+        { "key": { "workspaceId": 1, "assignee": 1 }, "options": { "name": "my_tasks" } },
+        { "key": { "workspaceId": 1, "dueDate": 1 }, "options": { "name": "overdue_scan" } },
+        { "key": { "taskCode": 1 }, "options": { "name": "by_taskCode" } },
+        { "key": { "title": "text", "description": "text" }, "options": { "name": "task_text_search" } }
+      ]
+    },
+    {
+      "name": "comments",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["taskId", "workspaceId", "authorId", "body"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "taskId": { "bsonType": "objectId" },
+            "workspaceId": { "bsonType": "objectId" },
+            "authorId": { "bsonType": "objectId" },
+            "body": { "bsonType": "string", "minLength": 1, "maxLength": 5000 },
+            "parentId": { "bsonType": ["objectId", "null"] },
+            "mentions": {
+              "bsonType": "array",
+              "items": { "bsonType": "objectId" }
+            },
+            "editedAt": { "bsonType": ["date", "null"] },
+            "deletedAt": { "bsonType": ["date", "null"] },
+            "createdAt": { "bsonType": "date" },
+            "updatedAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "taskId": 1, "parentId": 1, "createdAt": 1 }, "options": { "name": "thread_render" } },
+        { "key": { "workspaceId": 1, "authorId": 1 }, "options": { "name": "by_ws_author" } }
+      ]
+    },
+    {
+      "name": "notifications",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["userId", "workspaceId", "type", "title", "entityType", "entityId", "read"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "userId": { "bsonType": "objectId" },
+            "workspaceId": { "bsonType": "objectId" },
+            "type": {
+              "enum": [
+                "TASK_ASSIGNED", "TASK_STATUS_CHANGED", "TASK_DUE_SOON", "TASK_OVERDUE",
+                "COMMENT_ADDED", "COMMENT_REPLY", "MENTIONED", "MEMBER_INVITED",
+                "MEMBER_JOINED", "ROLE_CHANGED", "REMOVED_FROM_WORKSPACE", "PROJECT_CREATED"
+              ]
+            },
+            "title": { "bsonType": "string" },
+            "body": { "bsonType": ["string", "null"] },
+            "entityType": { "enum": ["TASK", "PROJECT", "WORKSPACE", "COMMENT", "INVITATION"] },
+            "entityId": { "bsonType": "objectId" },
+            "actorId": { "bsonType": ["objectId", "null"] },
+            "read": { "bsonType": "bool" },
+            "readAt": { "bsonType": ["date", "null"] },
+            "createdAt": { "bsonType": "date" },
+            "updatedAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "userId": 1, "read": 1, "createdAt": -1 }, "options": { "name": "inbox_and_badge" } }
+      ]
+    },
+    {
+      "name": "activities",
+      "validator": {
+        "$jsonSchema": {
+          "bsonType": "object",
+          "required": ["workspaceId", "actorId", "type", "createdAt"],
+          "properties": {
+            "_id": { "bsonType": "objectId" },
+            "workspaceId": { "bsonType": "objectId" },
+            "projectId": { "bsonType": ["objectId", "null"] },
+            "taskId": { "bsonType": ["objectId", "null"] },
+            "actorId": { "bsonType": "objectId" },
+            "type": {
+              "enum": [
+                "WORKSPACE_CREATED", "PROJECT_CREATED", "MEMBER_INVITED", "MEMBER_JOINED",
+                "TASK_CREATED", "TASK_STATUS_CHANGED", "TASK_ASSIGNED", "TASK_UNASSIGNED",
+                "TASK_PRIORITY_CHANGED", "TASK_DUE_CHANGED", "TASK_RENAMED",
+                "COMMENT_ADDED", "TASK_ATTACHMENT_ADDED", "TASK_DELETED"
+              ]
+            },
+            "entityLabel": { "bsonType": ["string", "null"] },
+            "metadata": { "bsonType": ["object", "null"] },
+            "createdAt": { "bsonType": "date" },
+            "__v": { "bsonType": ["int", "long"] }
+          }
+        }
+      },
+      "indexes": [
+        { "key": { "workspaceId": 1, "createdAt": -1 }, "options": { "name": "ws_feed" } },
+        { "key": { "projectId": 1, "createdAt": -1 }, "options": { "name": "project_feed" } },
+        { "key": { "taskId": 1, "createdAt": -1 }, "options": { "name": "task_timeline" } }
+      ]
+    }
+  ]
+}
