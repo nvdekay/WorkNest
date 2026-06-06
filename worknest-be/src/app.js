@@ -44,6 +44,9 @@ if (!env.isTest) {
   );
 }
 
+// --- Static uploads (avatars, attachments) ---
+app.use('/uploads', express.static(env.UPLOAD_DIR, { index: false, dotfiles: 'deny' }));
+
 // --- Health & docs ---
 app.get('/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
