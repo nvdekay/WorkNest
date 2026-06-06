@@ -15,9 +15,12 @@ const signRefreshToken = (userId, jti = crypto.randomUUID(), extra = {}) =>
 const verifyAccessToken = (token) => jwt.verify(token, env.JWT_ACCESS_SECRET);
 const verifyRefreshToken = (token) => jwt.verify(token, env.JWT_REFRESH_SECRET);
 
+const decode = (token) => jwt.decode(token);
+
 module.exports = {
   signAccessToken,
   signRefreshToken,
   verifyAccessToken,
   verifyRefreshToken,
+  decode,
 };
