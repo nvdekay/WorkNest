@@ -1,5 +1,19 @@
 const Joi = require('joi');
 
+const isIanaTimezone = (value, helpers) => {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: value });
+    return value;
+  } catch (_err) {
+    return helpers.error('any.invalid');
+  }
+};
+
+const settingsSchema = Joi.object({
+  memberCanCreateProject: Joi.boolean(),
+  timezone: Joi.string().custom(isIanaTimezone, 'IANA timezone'),
+}).min(1);
+
 const create = {
   body: Joi.object({
     name: Joi.string().trim().min(2).max(80).required(),
@@ -12,10 +26,7 @@ const update = {
     name: Joi.string().trim().min(2).max(80),
     description: Joi.string().max(500).allow(null, ''),
     avatarUrl: Joi.string().uri({ scheme: ['https'] }).allow(null),
-    settings: Joi.object({
-      memberCanCreateProject: Joi.boolean(),
-      timezone: Joi.string(),
-    }),
+    settings: settingsSchema,
   }).min(1),
 };
 
