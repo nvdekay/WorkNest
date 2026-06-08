@@ -1,8 +1,25 @@
-const notImpl = require('../../common/utils/notImpl');
+const asyncHandler = require('../../common/utils/asyncHandler');
+const { ok } = require('../../common/utils/apiResponse');
+const service = require('./member.service');
 
-module.exports = {
-  list: notImpl('GET /workspaces/:workspaceId/members'),
-  updateRole: notImpl('PATCH /workspaces/:workspaceId/members/:memberId/role'),
-  remove: notImpl('DELETE /workspaces/:workspaceId/members/:memberId'),
-  leave: notImpl('POST /workspaces/:workspaceId/members/leave'),
-};
+const list = asyncHandler(async (req, res) => {
+  const { items, meta } = await service.list(req.params.workspaceId, req.query);
+  return ok(res, items, meta);
+});
+
+const updateRole = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.updateRole(req.params.workspaceId, req.params.memberId, req.body.role, req.user)
+  );
+});
+
+const remove = asyncHandler(async (req, res) => {
+  return ok(res, await service.remove(req.params.workspaceId, req.params.memberId, req.user));
+});
+
+const leave = asyncHandler(async (req, res) => {
+  return ok(res, await service.leave(req.params.workspaceId, req.user._id));
+});
+
+module.exports = { list, updateRole, remove, leave };
