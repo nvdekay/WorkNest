@@ -6,6 +6,14 @@ const labelSchema = Joi.object({
   color: Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/).required(),
 });
 
+// startDate ≤ dueDate khi cả hai cùng có mặt (Joi không check across nullables tốt → custom).
+const dateOrderValid = (value, helpers) => {
+  if (value.startDate && value.dueDate && new Date(value.startDate) > new Date(value.dueDate)) {
+    return helpers.error('any.invalid', { message: 'startDate must be ≤ dueDate' });
+  }
+  return value;
+};
+
 const create = {
   body: Joi.object({
     title: Joi.string().trim().min(1).max(200).required(),
@@ -16,7 +24,7 @@ const create = {
     dueDate: Joi.date().iso().allow(null),
     startDate: Joi.date().iso().allow(null),
     labels: Joi.array().items(labelSchema).max(10),
-  }),
+  }).custom(dateOrderValid, 'date order'),
 };
 
 const update = {
@@ -30,7 +38,7 @@ const update = {
     dueDate: Joi.date().iso().allow(null),
     startDate: Joi.date().iso().allow(null),
     labels: Joi.array().items(labelSchema).max(10),
-  }).min(1),
+  }).min(1).custom(dateOrderValid, 'date order'),
 };
 
 const list = {

@@ -1,21 +1,160 @@
-const notImpl = require('../../common/utils/notImpl');
+const asyncHandler = require('../../common/utils/asyncHandler');
+const { ok, created } = require('../../common/utils/apiResponse');
+const service = require('./task.service');
 
-const prefix = '/workspaces/:workspaceId/projects/:projectId/tasks';
+const list = asyncHandler(async (req, res) => {
+  const result = await service.list(
+    req.params.workspaceId,
+    req.params.projectId,
+    req.query,
+    req.user._id
+  );
+  // board → { columns: [...] }; list → { items, meta }
+  if (result.columns) return ok(res, { columns: result.columns });
+  return ok(res, result.items, result.meta);
+});
+
+const create = asyncHandler(async (req, res) => {
+  return created(
+    res,
+    await service.create(req.params.workspaceId, req.params.projectId, req.body, req.user)
+  );
+});
+
+const getById = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.getById(req.params.workspaceId, req.params.projectId, req.params.taskId)
+  );
+});
+
+const update = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.update(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.body,
+      req.user,
+      req.membership
+    )
+  );
+});
+
+const remove = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.remove(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.user,
+      req.membership
+    )
+  );
+});
+
+const addChecklist = asyncHandler(async (req, res) => {
+  return created(
+    res,
+    await service.addChecklist(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.body.text,
+      req.user,
+      req.membership
+    )
+  );
+});
+
+const updateChecklist = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.updateChecklistItem(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.params.itemId,
+      req.body,
+      req.user,
+      req.membership
+    )
+  );
+});
+
+const removeChecklist = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.removeChecklistItem(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.params.itemId,
+      req.user,
+      req.membership
+    )
+  );
+});
+
+const addAttachment = asyncHandler(async (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  return created(
+    res,
+    await service.addAttachment(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.file,
+      req.user,
+      req.membership,
+      baseUrl
+    )
+  );
+});
+
+const removeAttachment = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.removeAttachment(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.params.attachmentId,
+      req.user,
+      req.membership
+    )
+  );
+});
+
+const watch = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.watch(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.user._id
+    )
+  );
+});
+
+const unwatch = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await service.unwatch(
+      req.params.workspaceId,
+      req.params.projectId,
+      req.params.taskId,
+      req.user._id
+    )
+  );
+});
 
 module.exports = {
-  list: notImpl(`GET ${prefix}`),
-  create: notImpl(`POST ${prefix}`),
-  getById: notImpl(`GET ${prefix}/:taskId`),
-  update: notImpl(`PATCH ${prefix}/:taskId`),
-  remove: notImpl(`DELETE ${prefix}/:taskId`),
-
-  addChecklist: notImpl(`POST ${prefix}/:taskId/checklist`),
-  updateChecklist: notImpl(`PATCH ${prefix}/:taskId/checklist/:itemId`),
-  removeChecklist: notImpl(`DELETE ${prefix}/:taskId/checklist/:itemId`),
-
-  addAttachment: notImpl(`POST ${prefix}/:taskId/attachments`),
-  removeAttachment: notImpl(`DELETE ${prefix}/:taskId/attachments/:attachmentId`),
-
-  watch: notImpl(`POST ${prefix}/:taskId/watch`),
-  unwatch: notImpl(`DELETE ${prefix}/:taskId/watch`),
+  list, create, getById, update, remove,
+  addChecklist, updateChecklist, removeChecklist,
+  addAttachment, removeAttachment,
+  watch, unwatch,
 };

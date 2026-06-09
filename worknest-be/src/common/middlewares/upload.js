@@ -9,6 +9,22 @@ const ApiError = require('../errors/ApiError');
 const IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/webp'];
 const EXT_BY_MIME = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
+// Allowlist cho task attachments — ảnh + PDF + tài liệu Office + text/zip phổ biến.
+const ATTACHMENT_MIMES = [
+  ...IMAGE_MIMES,
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/json',
+  'application/zip',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+];
+
 const ensureDir = (dir) => {
   fs.mkdirSync(dir, { recursive: true });
   return dir;
@@ -51,7 +67,18 @@ const singleImage = (field, maxBytes, subdir) =>
     }).single(field)
   );
 
+const singleAttachment = (field, maxBytes, subdir) =>
+  wrap(
+    multer({
+      storage: makeStorage(subdir),
+      limits: { fileSize: maxBytes, files: 1 },
+      fileFilter: allowMimes(ATTACHMENT_MIMES),
+    }).single(field)
+  );
+
 module.exports = {
   avatarUpload: singleImage('file', env.MAX_AVATAR_SIZE, 'avatars'),
+  attachmentUpload: singleAttachment('file', env.MAX_ATTACHMENT_SIZE, 'attachments'),
   IMAGE_MIMES,
+  ATTACHMENT_MIMES,
 };
